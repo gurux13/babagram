@@ -1,0 +1,15 @@
+smbus~=1.1.post2
+gpio
+python-telegram-bot
+# Make sure to install those as additional_dependencies in the
+# pre-commit hooks for pylint & mypy
+certifi
+# only telegram.ext: # Keep this line here; used in setup(-raw).py
+tornado>=6.1
+APScheduler==3.8.1
+pytz>=2018.6
+cachetools==4.2.2
+imageio~=2.13.1
+numpy~=1.16.2
+Pillow~=8.4.0
+requests
