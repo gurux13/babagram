@@ -1,8 +1,16 @@
 import threading
 
-import smbus
+
 import time
-import RPi.GPIO as GPIO
+
+from i2c import I2C
+is_pi = True
+try:
+    import RPi.GPIO as GPIO
+except:
+    is_pi = False
+    import Mock.GPIO as GPIO
+# import RPi.GPIO as GPIO
 from enum import Enum, unique
 import numpy as np
 
@@ -43,9 +51,7 @@ class Hardware:
         self.leds = 0
         self.led_blinks = 0
         self.led_mapping = [-1]*6 + [8, 7, 12]
-
-        self.bus = smbus.SMBus(1)
-        self.address = 42
+        self.i2c = I2C()
         self.last_interrupt = 0
         self.last_btn = -1
         self._on_btnpress = None
@@ -77,38 +83,15 @@ class Hardware:
         self._on_btnpress(button)
         print("Callback for", gpio, "btn:", button)
 
-    def send_byte(self, byte: int) -> None:
-        for _ in range(10):
-            try:
-                self.bus.write_byte(self.address, byte)
-                time.sleep(0.001)
-                break
-            except OSError:
-                pass
 
-    def send(self, cmd: int,  payload: bytes) -> None:
-
-        self.send_byte(42) # magic
-        self.send_byte(cmd)
-        self.send_byte(len(payload))
-        for byte in payload:
-            self.send_byte(byte)
-
-    def recv(self, count: int) -> bytearray:
-        rv = bytearray(count)
-        for i in range(count):
-            rv[i] = self.bus.read_byte(self.address)
-            time.sleep(0.01)
-
-        return rv
 
     def simple_command(self, cmd: int, payload: bytes) -> bool:
         self.i2c_lock.acquire()
-        self.send(cmd, payload)
-        received = self.recv(1)
+        self.i2c.send(cmd, payload)
+        received = self.i2c.recv(1)
         now = time.time()
         while received[0] == 0 and time.time() < now + 1:
-            received = self.recv(1)
+            received = self.i2c.recv(1)
         self.i2c_lock.release()
         return  received[0] == 1
 
@@ -138,8 +121,8 @@ class Hardware:
     def get_paper_status(self):
         self.lock()
         try:
-            self.send(8, b'\001')
-            received = self.recv(1)
+            self.i2c.send(8, b'\001')
+            received = self.i2c.recv(1)
             return received[0]
         finally:
             self.unlock()

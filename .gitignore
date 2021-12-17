@@ -4,3 +4,4 @@ Debug/
 __vm/
 .idea/
 /python/private_config.py
+__pycache__

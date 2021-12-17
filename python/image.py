@@ -25,11 +25,15 @@ def bw(img: np.ndarray) -> np.ndarray:
 def print_message(sender: str, text: str) -> np.array:
     img = PILImage.new('L', (128, 1000), color=255)
     d = ImageDraw.Draw(img)
-    sender_font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 28)
+    # sender_font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 28)
+    sender_font = ImageFont.load('fonts/10x20-KOI8-R.pil')
     # text_font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 18)
-    text_font = ImageFont.truetype("SourceSansPro-Regular.ttf", 25)
-    d.text((0, 0), sender + ":", fill=0, font=sender_font)
-    sender_shape = d.textsize(sender + ":", font = sender_font)
+    text_font = ImageFont.load('fonts/8x13-KOI8-R.pil')
+    sender = (sender + ":").encode('koi8-r')
+    text = text.encode('koi8-r')
+    # text_font = ImageFont.truetype("SourceSansPro-Regular.ttf", 25)
+    d.text((0, 0), sender, fill=0, font=sender_font)
+    sender_shape = d.textsize(sender, font = sender_font)
     cur_height = sender_shape[1] + 5
     curpos = 0
     while curpos < len(text):
@@ -57,6 +61,7 @@ def print_message(sender: str, text: str) -> np.array:
     cur_height += 3
     d.line((0, cur_height, 128, cur_height), fill = 0, width=2)
     img = img.crop((0, 0, 128, cur_height+2))
+    img.save('/tmp/image-to-print.png')
     # img = img.resize((128, math.floor(img.size[1] * 1.3)), resample=PILImage.HAMMING)
     return bw(np.array(img.getdata()).reshape(-1, 128))
 

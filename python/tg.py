@@ -22,7 +22,7 @@ from telegram import Update, ForceReply, Voice
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ExtBot
 
 # Enable logging
-from hardware import Hardware
+from hardware import Hardware, is_pi
 from image import print_message
 from paper_status import PaperStatus
 from printer import Printer
@@ -72,7 +72,7 @@ class Telegram:
 
     def is_allowed_or_gtfo(self, update: Update):
         if not update.effective_user.id in self.private_config.allowed_ids:
-            update.message.reply_text("Unregistered user.")
+            update.message.reply_text("Unregistered user " + update.effective_user.id)
             return False
         return True
 
@@ -104,7 +104,7 @@ class Telegram:
         if update.effective_user.id in self.name_map:
             user_name = self.name_map[update.effective_user.id]
             had_name = True
-        if not PaperStatus.instance().is_ok:
+        if not PaperStatus.instance().is_ok and is_pi:
             update.effective_message.reply_text("Проблема с бумагой - не могу напечатать...")
         else:
             Printer(self.hardware).print_img(print_message(user_name, update.message.text), 6000, 1)
@@ -126,12 +126,15 @@ class Telegram:
     def main(self) -> None:
         """Start the bot."""
         # Create the Updater and pass it your bot's token.
-        updater = Updater(self.private_config.token)
+        updater = Updater(self.private_config.token, use_context=True)
 
         # Get the dispatcher to register handlers
         dispatcher = updater.dispatcher
         self.bot = updater.bot
-        updater.bot.send_message(self.private_config.admin_id, "Система запущена")
+        try:
+            updater.bot.send_message(self.private_config.admin_id, "Система запущена")
+        except:
+            pass
 
         # on different commands - answer in Telegram
         dispatcher.add_handler(CommandHandler("start", self.start))
