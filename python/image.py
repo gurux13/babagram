@@ -3,6 +3,10 @@ import math
 from PIL import Image as PILImage, ImageDraw, ImageFont
 import imageio
 import numpy as np
+
+from hardware import is_pi
+
+
 class Image:
     def __init__(self, path: str):
         self.img = imageio.imread(path)
@@ -61,7 +65,8 @@ def print_message(sender: str, text: str) -> np.array:
     cur_height += 3
     d.line((0, cur_height, 128, cur_height), fill = 0, width=2)
     img = img.crop((0, 0, 128, cur_height+2))
-    img.save('/tmp/image-to-print.png')
+    if not is_pi:
+        img.save('/tmp/image-to-print.png')
     # img = img.resize((128, math.floor(img.size[1] * 1.3)), resample=PILImage.HAMMING)
     return bw(np.array(img.getdata()).reshape(-1, 128))
 

@@ -16,7 +16,7 @@ bot.
 """
 
 import logging
-from pathlib import Path
+import os
 
 from telegram import Update, ForceReply, Voice
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ExtBot
@@ -38,11 +38,12 @@ logger = logging.getLogger(__name__)
 
 tg_instance = None
 
+
 class Telegram:
     def __init__(self, hardware: Hardware):
         self.hardware = hardware
         self.name_map = {}
-        self.name_map_fname = '/home/pi/babagram/name_map.pkl'
+        self.name_map_fname = os.environ['HOME'] + '/babagram/name_map.pkl'
         self.bot: ExtBot = None
         self.private_config = PrivateConfig()
         try:
@@ -64,8 +65,10 @@ class Telegram:
         )
 
     def save_mapping(self):
+        os.makedirs(os.path.dirname(self.name_map_fname), exist_ok=True)
         with open(self.name_map_fname, 'wb') as f:
             pickle.dump(self.name_map, f)
+
     def load_mapping(self):
         with open(self.name_map_fname, 'rb') as f:
             self.name_map = pickle.loads(f.read())
@@ -108,13 +111,18 @@ class Telegram:
             update.effective_message.reply_text("Проблема с бумагой - не могу напечатать...")
         else:
             Printer(self.hardware).print_img(print_message(user_name, update.message.text), 6000, 1)
-            update.effective_message.reply_text("Напечатано!" if had_name else "Напечатано, но... Установите имя командой /name !")
+            update.effective_message.reply_text(
+                "Напечатано!" if had_name else "Напечатано, но... Установите имя командой /name !")
 
     def send_audio(self, filename, destination):
         id = self.private_config.destinations[destination]
-        with open (filename, 'rb') as f:
+        with open(filename, 'rb') as f:
             data = f.read()
             self.bot.send_voice(id, data)
+    def send_text(self, text, destination):
+        id = self.private_config.destinations[destination]
+        self.bot.send_message(id, text)
+
 
     def beep_command(self, update: Update, context: CallbackContext) -> None:
         if not self.is_allowed_or_gtfo(update):

@@ -1,6 +1,8 @@
+import threading
 import time
 from threading import Thread
 
+from constants import Constants
 from hardware import Hardware
 from image import print_message
 from printer import Printer
@@ -15,6 +17,9 @@ class ButtonLogic:
         self.rec = rec
         self.is_recording = False
         self.destination = None
+        self.sos_starts_at = None
+        self.sos_thread: Thread = None
+
 
     def record(self):
         try:
@@ -42,8 +47,37 @@ class ButtonLogic:
         finally:
             self.is_recording = False
 
+    def start_sos(self):
+        for i in range(4):
+            self.tg.send_text(Constants.SOS_MESSAGE, i)
+
     def on_sos(self):
+        if self.is_recording:
+            return
+
+        if self.sos_starts_at is not None:
+            self.sos_starts_at = None
+            self.hw.all_volatile_leds_off()
+            self.destination = None
+            return
         self.hw.led(Hardware.Led.Sos, Hardware.LedMode.Blink)
+        self.hw.led(Hardware.Led.Dir1, Hardware.LedMode.On)
+        self.hw.led(Hardware.Led.Dir2, Hardware.LedMode.On)
+        self.hw.led(Hardware.Led.Dir3, Hardware.LedMode.On)
+        self.hw.led(Hardware.Led.Dir4, Hardware.LedMode.On)
+        self.hw.led(Hardware.Led.Record, Hardware.LedMode.Off)
+        self.hw.buzz(100, 130, Constants.SOS_TIME_DELAY, 2)
+        self.sos_starts_at = time.time() + Constants.SOS_TIME_DELAY
+        def _thread_proc():
+            while self.sos_starts_at is not None and time.time() < self.sos_starts_at:
+                time.sleep(0.1)
+            if self.sos_starts_at is None:
+                return
+            self.start_sos()
+        self.sos_thread = threading.Thread(target=_thread_proc())
+        self.sos_thread.setDaemon(True)
+        self.sos_thread.start()
+
 
     def update_destination(self):
         self.hw.all_volatile_leds_off()
