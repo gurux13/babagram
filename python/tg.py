@@ -40,12 +40,13 @@ tg_instance = None
 
 
 class Telegram:
-    def __init__(self, hardware: Hardware):
+    def __init__(self, hardware: Hardware, ):
         self.hardware = hardware
         self.name_map = {}
         self.name_map_fname = os.environ['HOME'] + '/babagram/name_map.pkl'
         self.bot: ExtBot = None
         self.private_config = PrivateConfig()
+        self.on_sos_cancel = None
         try:
             self.load_mapping()
         except Exception as e:
@@ -56,6 +57,8 @@ class Telegram:
             raise Exception("Duplicate telegram - not allowed!")
         tg_instance = self
 
+    def set_sos_cancel_callback(self, on_sos_cancel):
+        self.on_sos_cancel = on_sos_cancel
     def start(self, update: Update, context: CallbackContext) -> None:
         """Send a message when the command /start is issued."""
         user = update.effective_user
@@ -78,6 +81,9 @@ class Telegram:
             update.message.reply_text("Unregistered user " + update.effective_user.id)
             return False
         return True
+
+    def sos_cancel_command(self, update: Update, context: CallbackContext) -> None:
+        self.on_sos_cancel(update)
 
     def help_command(self, update: Update, context: CallbackContext) -> None:
         """Send a message when the command /help is issued."""
@@ -102,6 +108,7 @@ class Telegram:
         """Echo the user message."""
         if not self.is_allowed_or_gtfo(update):
             return
+
         had_name = False
         user_name = update.effective_user.name
         if update.effective_user.id in self.name_map:
@@ -110,17 +117,23 @@ class Telegram:
         if not PaperStatus.instance().is_ok and is_pi:
             update.effective_message.reply_text("Проблема с бумагой - не могу напечатать...")
         else:
-            Printer(self.hardware).print_img(print_message(user_name, update.message.text), 6000, 1)
+            Printer(self.hardware).print_img(print_message(user_name, update.message.text, update.message.date), 7000, 1)
+            self.hardware.buzz(130, 0, 5, 0)
             update.effective_message.reply_text(
                 "Напечатано!" if had_name else "Напечатано, но... Установите имя командой /name !")
 
     def send_audio(self, filename, destination):
         id = self.private_config.destinations[destination]
+        if id == 0:
+            return
         with open(filename, 'rb') as f:
             data = f.read()
             self.bot.send_voice(id, data)
     def send_text(self, text, destination):
         id = self.private_config.destinations[destination]
+        if id == 0:
+            return
+
         self.bot.send_message(id, text)
 
 
@@ -149,6 +162,7 @@ class Telegram:
         dispatcher.add_handler(CommandHandler("help", self.help_command))
         dispatcher.add_handler(CommandHandler("name", self.name_command))
         dispatcher.add_handler(CommandHandler("beep", self.beep_command))
+        dispatcher.add_handler(CommandHandler("stopsos", self.sos_cancel_command))
 
         # on non command i.e message - echo the message on Telegram
         dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, self.echo))
