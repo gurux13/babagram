@@ -6,8 +6,9 @@ from threading import Thread
 from telegram import Update
 
 from constants import Constants
-from hardware import Hardware
-from image import print_message
+from hardware import Hardware, is_pi
+from image import print_message, print_smalltext
+from paper_status import PaperStatus
 from printer import Printer
 from recording import Recording
 from tg import Telegram
@@ -16,6 +17,7 @@ from tg import Telegram
 class ButtonLogic:
 
     def __init__(self, hardware: Hardware, tg: Telegram, rec: Recording):
+
         self.hw = hardware
         self.tg = tg
         self.rec = rec
@@ -33,7 +35,6 @@ class ButtonLogic:
         self.reset_thread.setDaemon(True)
         self.reset_thread.start()
 
-
     def dbg_print_threadproc(self):
         while True:
             time.sleep(0.1)
@@ -43,13 +44,7 @@ class ButtonLogic:
                     self.hw.btn_pressed(Hardware.Buttons.Dir2) and
                     self.hw.btn_pressed(Hardware.Buttons.Dir3) and
                     self.hw.btn_pressed(Hardware.Buttons.Dir4)):
-                self.is_dbg_printing = True
-                print("DBG print requested")
-                self.hw.all_volatile_leds_off()
-                self.hw.led(Hardware.Led.Sos, Hardware.LedMode.Blink)
-                self.dbg_print()
-                self.is_dbg_printing = False
-                self.hw.led(Hardware.Led.Sos, Hardware.LedMode.Off)
+                self.on_tg_dbgprint(None)
 
 
 
@@ -63,11 +58,36 @@ class ButtonLogic:
                 self.reset_destination_at = None
                 self.update_destination()
 
-    def dbg_print(self):
-        script = subprocess.Popen("./dbg_print.sh", shell=True, stdout=subprocess.PIPE)
-        script_data = script.stdout.read()
-        print(script_data)
+    def print_smallfont(self, text):
 
+        Printer(self.hw).print_img(print_smalltext(text))
+
+    def on_tg_dbgprint(self, update: Update):
+        self.hw.all_volatile_leds_off()
+        self.hw.led(Hardware.Led.Sos, Hardware.LedMode.Blink)
+        self.hw.led(Hardware.Led.Rec, Hardware.LedMode.Blink)
+        self.is_dbg_printing = True
+
+        try:
+            text = self.get_dbgprint_text()
+            if update is not None:
+                update.message.reply_text(text)
+            ok = False
+            if PaperStatus.instance().is_ok and is_pi:
+                self.print_smallfont(text)
+                ok = True
+
+            if update is not None:
+                update.message.reply_text("Напечатано!" if ok else "Проблема с бумагой!")
+        finally:
+            self.is_dbg_printing = False
+            self.hw.led(Hardware.Led.Sos, Hardware.LedMode.Off)
+            self.hw.led(Hardware.Led.Rec, Hardware.LedMode.Off)
+
+    def get_dbgprint_text(self):
+        script = subprocess.Popen("./dbg_print.sh", shell=True, stdout=subprocess.PIPE)
+        script_data = script.stdout.read().decode('cp1251')
+        return script_data
     def record(self):
         if self.is_sos:
             return
@@ -88,7 +108,7 @@ class ButtonLogic:
             try:
                 self.tg.send_audio(audio, self.destination)
             except:
-                Printer(self.hw).print_img(print_message("Ошибка", "Не удалось отправить сообщение!"), 6000, 1)
+                Printer(self.hw).print_img(print_message("Ошибка", "Не удалось отправить сообщение!"))
             finally:
                 self.hw.led(Hardware.Led.Rec, Hardware.LedMode.Off)
                 self.hw.led(Hardware.Led(Hardware.Led.Dir1.value + self.destination), Hardware.LedMode.On)

@@ -29,6 +29,16 @@ def bw(img: np.ndarray) -> np.ndarray:
     img = (img > 0.5) * 1
     return img
 
+def print_smalltext(text) -> np.array:
+    img = PILImage.new('L', (128, 2000), color=255)
+    d = ImageDraw.Draw(img)
+    text_font = ImageFont.load('fonts/new/t0-11-m51.pil')
+    d.multiline_text((0, 0), text, fill=0, font=text_font)
+    text_shape = d.multiline_textsize(text, font=text_font)
+    img = img.crop((0, 0, 128, text_shape[1] + 2))
+    if not is_pi or True:
+        img.save('/tmp/image-to-print.png')
+    return bw(np.array(img.getdata()).reshape(-1, 128))
 
 def print_message(sender: str, text: str, when: datetime.datetime) -> np.array:
     img = PILImage.new('L', (128, 2000), color=255)

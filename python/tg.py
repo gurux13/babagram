@@ -42,16 +42,10 @@ tg_instance = None
 class Telegram:
     def __init__(self, hardware: Hardware, ):
         self.hardware = hardware
-        self.name_map = {}
-        self.name_map_fname = os.environ['HOME'] + '/babagram/name_map.pkl'
         self.bot: ExtBot = None
         self.private_config = PrivateConfig()
         self.on_sos_cancel = None
-        try:
-            self.load_mapping()
-        except Exception as e:
-            logger.error(str(e))
-            pass
+        self.on_dbg_print = None
         global tg_instance
         if tg_instance is not None:
             raise Exception("Duplicate telegram - not allowed!")
@@ -59,6 +53,8 @@ class Telegram:
 
     def set_sos_cancel_callback(self, on_sos_cancel):
         self.on_sos_cancel = on_sos_cancel
+    def set_dbgprint_callback(self, on_dbg_print):
+        self.on_dbg_print = on_dbg_print
     def start(self, update: Update, context: CallbackContext) -> None:
         """Send a message when the command /start is issued."""
         user = update.effective_user
@@ -66,15 +62,6 @@ class Telegram:
             fr'Hi {user.mention_markdown_v2()}\!',
             reply_markup=ForceReply(selective=True),
         )
-
-    def save_mapping(self):
-        os.makedirs(os.path.dirname(self.name_map_fname), exist_ok=True)
-        with open(self.name_map_fname, 'wb') as f:
-            pickle.dump(self.name_map, f)
-
-    def load_mapping(self):
-        with open(self.name_map_fname, 'rb') as f:
-            self.name_map = pickle.loads(f.read())
 
     def is_allowed_or_gtfo(self, update: Update):
         if not update.effective_user.id in self.private_config.allowed_ids:
@@ -92,20 +79,7 @@ class Telegram:
         update.message.reply_text('Help!')
 
     def dbg_print_command(self, update: Update, context: CallbackContext) -> None:
-        self.
-
-    def name_command(self, update: Update, context: CallbackContext) -> None:
-        if not self.is_allowed_or_gtfo(update):
-            return
-
-        user = update.effective_user.id
-        new_name = update.message.text.replace('/name ', '')
-        if len(new_name) > 10:
-            update.message.reply_text("Слишком длинное имя!")
-            return
-        self.name_map[user] = new_name
-        update.message.reply_text("Ок, теперь Ваше имя " + new_name)
-        self.save_mapping()
+        self.on_dbg_print(update)
 
     def echo(self, update: Update, context: CallbackContext) -> None:
         """Echo the user message."""
@@ -114,13 +88,15 @@ class Telegram:
 
         had_name = False
         user_name = update.effective_user.name
-        if update.effective_user.id in self.name_map:
-            user_name = self.name_map[update.effective_user.id]
+        idx = self.private_config.destinations.index(update.effective_user.id)
+        if idx is not None:
+            user_name = self.private_config.names[idx]
             had_name = True
         if not PaperStatus.instance().is_ok and is_pi:
             update.effective_message.reply_text("Проблема с бумагой - не могу напечатать...")
         else:
-            Printer(self.hardware).print_img(print_message(user_name, update.message.text, update.message.date), 7000, 1)
+            update.message.reply_text("Печатаем...")
+            Printer(self.hardware).print_img(print_message(user_name, update.message.text, update.message.date))
             self.hardware.buzz(130, 0, 5, 0)
             update.effective_message.reply_text(
                 "Напечатано!" if had_name else "Напечатано, но... Установите имя командой /name !")
@@ -163,9 +139,9 @@ class Telegram:
         # on different commands - answer in Telegram
         dispatcher.add_handler(CommandHandler("start", self.start))
         dispatcher.add_handler(CommandHandler("help", self.help_command))
-        dispatcher.add_handler(CommandHandler("name", self.name_command))
         dispatcher.add_handler(CommandHandler("beep", self.beep_command))
         dispatcher.add_handler(CommandHandler("stopsos", self.sos_cancel_command))
+        dispatcher.add_handler(CommandHandler("dbgprint", self.dbg_print_command))
 
         # on non command i.e message - echo the message on Telegram
         dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, self.echo))
