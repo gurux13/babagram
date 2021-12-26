@@ -69,6 +69,7 @@ class Hardware:
         self.recording = recording
 
     def cleanup(self):
+        self.all_volatile_leds_off()
         GPIO.cleanup()
 
     def on_btn_press(self, callback):

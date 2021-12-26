@@ -15,9 +15,9 @@ class Printer:
                 for _ in range(line_times):
                     self.hw.line(bytes(np.packbits(1 - line[::-1])))
                     self.hw.fire(delay)
-                    self.hw.scroll(3)
-                    time.sleep(0.02)
-            self.hw.scroll(100)
+                    self.hw.scroll(2)
+                    # time.sleep(0.02)
+            self.hw.scroll(120)
         finally:
             self.hw.unlock()
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=BabaGram
+After=multi-user.target network.target syslog.target
+
+[Service]
+Restart=on-failure
+RestartSec=4
+Type=idle
+WorkingDirectory=/home/pi/babagram
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/babagram/main.py
+
+[Install]
+WantedBy=multi-user.target

@@ -10,10 +10,15 @@
 #include "Wire/Wire.h"
 #endif
 
-#define PMOTOR1 PIN_PD5
-#define PMOTOR3 PIN_PD6
-#define PMOTOR2 PIN_PB1
-#define PMOTOR4 PIN_PB2
+#define PMOTORREV1 PIN_PB1
+#define PMOTORREV2 PIN_PB2
+
+#define PMOTORFWD1 PIN_PD5
+#define PMOTORFWD2 PIN_PD6
+//#define PMOTOR1 PIN_PD5
+//#define PMOTOR3 PIN_PD6
+//#define PMOTOR2 PIN_PB1
+//#define PMOTOR4 PIN_PB2
 
 
 #define PDATA PIN_PB0
@@ -54,9 +59,9 @@ void setup_aux_pins() {
 
 byte line_data[16];
 //byte rot[8] = { 0x09,0x01,0x03,0x02,0x06,0x04,0x0c,0x08 };
-byte rot[4] = { 0x01,0x02,0x04,0x08 };
-byte motor_pins[] = { PMOTOR1, PMOTOR2, PMOTOR3, PMOTOR4 };
-int motor_step_delay = 10;
+//byte rot[4] = { 0x01,0x02,0x04,0x08 };
+//byte motor_pins[] = { PMOTOR1, PMOTOR2, PMOTOR3, PMOTOR4 };
+int motor_step_delay = 25;
 int motor_ptr = 0;
 volatile int steps_remain = 0;
 unsigned long long next_step_at = 0;
@@ -65,6 +70,7 @@ byte led_status = 0;
 byte led_blink = 0;
 uint32_t next_led_blink = 0;
 byte just_reset = 1;
+bool scrolling_for_i2c = false;
 #ifdef HAS_SERIAL
 SoftwareSerial serial(PRX, PTX);
 #endif
@@ -121,33 +127,36 @@ void setup() {
 }
 void move_motor(int steps) {
     steps_remain = steps;
-    pinMode(PMOTOR1, OUTPUT);
+ /*   pinMode(PMOTOR1, OUTPUT);
     pinMode(PMOTOR2, OUTPUT);
     pinMode(PMOTOR3, OUTPUT);
     pinMode(PMOTOR4, OUTPUT);
+ */   pinMode(PMOTORFWD1, OUTPUT);
+    pinMode(PMOTORFWD2, OUTPUT);
 }
 
 void motor_step() {
-    if (steps_remain == 0 || millis() < next_step_at) {
+    if (steps_remain < 0 || millis() < next_step_at) {
         return;
     }
-    int8_t dir = steps_remain > 0 ? 1 : -1;
-    motor_ptr += dir;
-    if (motor_ptr == sizeof(rot)) {
-        motor_ptr = 0;
+    //int8_t dir = steps_remain > 0 ? 1 : -1;
+    motor_ptr = 1 - motor_ptr;
+    --steps_remain;
+    auto fwd_1_value = motor_ptr == 0 ? HIGH : LOW;
+    auto fwd_2_value = motor_ptr == 1 ? HIGH : LOW;
+    if (steps_remain >= 0) {
+        digitalWrite(PMOTORFWD1, fwd_1_value);
+        digitalWrite(PMOTORFWD2, fwd_2_value);
     }
-    if (motor_ptr == -1) {
-        motor_ptr = sizeof(rot) - 1;
-    }
-    steps_remain -= dir;
-    for (int i = 0; i < 4; ++i) {
-        digitalWrite(motor_pins[i], rot[motor_ptr] & (1 << i) ? HIGH : LOW);
-    }
-    if (steps_remain == 0) {
-        pinMode(PMOTOR1, INPUT);
-        pinMode(PMOTOR2, INPUT);
-        pinMode(PMOTOR3, INPUT);
-        pinMode(PMOTOR4, INPUT);
+    if (steps_remain == -1) {
+        pinMode(PMOTORFWD1, INPUT);
+        pinMode(PMOTORFWD2, INPUT);
+        pinMode(PMOTORREV1, INPUT);
+        pinMode(PMOTORREV2, INPUT);
+        if (scrolling_for_i2c) {
+            send_ok();
+            scrolling_for_i2c = false;
+        }
     }
     next_step_at = millis() + motor_step_delay;
 }
@@ -326,8 +335,9 @@ bool execute_i2cc(Command & cmd, byte* data, byte length) {
     case Command::Scroll:
         if (length == 4) {
             last_op = millis();
+            scrolling_for_i2c = true;
             scroll(*(int32_t*)data);
-            send_ok();
+            
             return true;
         }
         return false;

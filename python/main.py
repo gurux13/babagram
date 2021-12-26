@@ -16,6 +16,7 @@ def main():
     paper_status = PaperStatus(hardware)
     tg = Telegram(hardware)
     buttons = ButtonLogic(hardware, tg, recording)
+    tg.set_sos_cancel_callback(buttons.on_tg_stopsos)
     hardware.on_btn_press(buttons.on_btn_click)
     try:
         internet_checker.start()
