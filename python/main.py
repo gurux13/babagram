@@ -4,11 +4,11 @@ from internet_checker import InternetChecker
 from paper_status import PaperStatus
 from recording import Recording
 from tg import Telegram
-
+import os
 
 
 def main():
-
+    print("CWD:", os)
     hardware = Hardware()
     recording = Recording(hardware)
     hardware.set_recording(recording)

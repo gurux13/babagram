@@ -85,6 +85,9 @@ class Telegram:
             return
         update.message.reply_text('Help!')
 
+    def dbg_print_command(self, update: Update, context: CallbackContext) -> None:
+        self.
+
     def name_command(self, update: Update, context: CallbackContext) -> None:
         if not self.is_allowed_or_gtfo(update):
             return

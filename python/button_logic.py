@@ -1,3 +1,4 @@
+import subprocess
 import threading
 import time
 from threading import Thread
@@ -16,12 +17,40 @@ class ButtonLogic:
         self.tg = tg
         self.rec = rec
         self.is_recording = False
+        self.is_sos = False
         self.destination = None
         self.sos_starts_at = None
         self.sos_thread: Thread = None
+        self.dbg_print_thread = Thread(target=self.dbg_print_threadproc)
+        self.dbg_print_thread.setDaemon(True)
+        self.dbg_print_thread.start()
+        self.is_dbg_printing = False
 
+    def dbg_print_threadproc(self):
+        while True:
+            time.sleep(0.1)
+            if self.is_recording or self.is_sos:
+                continue
+            if (self.hw.btn_pressed(Hardware.Buttons.Dir1) and
+                    self.hw.btn_pressed(Hardware.Buttons.Dir2) and
+                    self.hw.btn_pressed(Hardware.Buttons.Dir3) and
+                    self.hw.btn_pressed(Hardware.Buttons.Dir4)):
+                self.is_dbg_printing = True
+                print("DBG print requested")
+                self.hw.all_volatile_leds_off()
+                self.hw.led(Hardware.Led.Sos, Hardware.LedMode.Blink)
+                self.dbg_print()
+                self.is_dbg_printing = False
+                self.hw.led(Hardware.Led.Sos, Hardware.LedMode.Off)
+
+    def dbg_print(self):
+        script = subprocess.Popen("./dbg_print.sh", shell=True, stdout=subprocess.PIPE)
+        script_data = script.stdout.read()
+        print(script_data)
 
     def record(self):
+        if self.is_sos:
+            return
         try:
             if self.destination is None:
                 for i in range(4):
@@ -86,12 +115,16 @@ class ButtonLogic:
     def on_btn_click(self, btn: Hardware.Buttons):
         if self.is_recording:
             return
+        if btn == Hardware.Buttons.Sos:
+            self.on_sos()
+            return
+        if self.is_sos:
+            return
         if btn == Hardware.Buttons.Rec:
             self.is_recording = True
             Thread(target=self.record, daemon=True).start()
             return
-        if btn == Hardware.Buttons.Sos:
-            self.on_sos()
+        if self.is_dbg_printing:
             return
         if btn == Hardware.Buttons.Dir1:
             self.destination = 0
