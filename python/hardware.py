@@ -1,9 +1,9 @@
 import threading
 
-
 import time
 
 from i2c import I2C
+
 is_pi = True
 try:
     import RPi.GPIO as GPIO
@@ -19,7 +19,7 @@ from recording import Recording
 
 class Hardware:
     @unique
-    class Led (Enum):
+    class Led(Enum):
         Sos = 0
         Dir1 = 1
         Dir2 = 2
@@ -32,13 +32,13 @@ class Hardware:
         Paper = 8
 
     @unique
-    class LedMode (Enum):
+    class LedMode(Enum):
         Off = 1,
         On = 2,
         Blink = 3
 
     @unique
-    class Buttons (Enum):
+    class Buttons(Enum):
         Sos = 25
         Dir1 = 24
         Dir2 = 23
@@ -50,7 +50,7 @@ class Hardware:
         self.i2c_lock = threading.RLock()
         self.leds = 0
         self.led_blinks = 0
-        self.led_mapping = [-1]*6 + [8, 7, 12]
+        self.led_mapping = [-1] * 6 + [8, 7, 12]
         self.i2c = I2C()
         self.last_interrupt = 0
         self.last_btn = -1
@@ -60,10 +60,10 @@ class Hardware:
             # print(pin)
             GPIO.setup(pin, GPIO.OUT)
         for btn in self.Buttons:
-            GPIO.setup(btn.value, GPIO.IN, pull_up_down = GPIO.PUD_UP)
+            GPIO.setup(btn.value, GPIO.IN, pull_up_down=GPIO.PUD_UP)
             GPIO.add_event_detect(btn.value, GPIO.FALLING, callback=self._btn_callback, bouncetime=200)
         self.all_leds_off()
-        self.recording:Recording = None
+        self.recording: Recording = None
 
     def set_recording(self, recording):
         self.recording = recording
@@ -84,8 +84,6 @@ class Hardware:
         self._on_btnpress(button)
         print("Callback for", gpio, "btn:", button)
 
-
-
     def simple_command(self, cmd: int, payload: bytes) -> bool:
         self.i2c_lock.acquire()
         self.i2c.send(cmd, payload)
@@ -94,7 +92,7 @@ class Hardware:
         while received[0] == 0 and time.time() < now + 1:
             received = self.i2c.recv(1)
         self.i2c_lock.release()
-        return  received[0] == 1
+        return received[0] == 1
 
     def lock(self):
         self.i2c_lock.acquire()
@@ -128,7 +126,6 @@ class Hardware:
         finally:
             self.unlock()
 
-
     def _send_leds(self) -> bool:
         return self.simple_command(7, bytes([self.leds, self.led_blinks]))
 
@@ -153,6 +150,7 @@ class Hardware:
         for pin in filter(lambda x: x != -1, self.led_mapping):
             GPIO.output(pin, GPIO.LOW)
         return self._send_leds()
+
     def all_volatile_leds_off(self):
         self.leds = self.led_blinks = 0
         return self._send_leds()
@@ -173,7 +171,7 @@ class Hardware:
 #     last_choice = chosen
 #     i2c.all_leds_off()
 #     time.sleep(1)
-    # break
-    # i2c.led(I2C.Led.Sos, I2C.LedMode.Blink)
+# break
+# i2c.led(I2C.Led.Sos, I2C.LedMode.Blink)
 #
 #

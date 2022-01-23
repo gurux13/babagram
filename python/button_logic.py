@@ -155,6 +155,9 @@ class ButtonLogic:
         if self.sos_starts_at is not None:
             self.cancel_sos()
             return
+        time.sleep(0.05)
+        if not self.hw.btn_pressed(Hardware.Buttons.Sos):
+            return
         self.hw.led(Hardware.Led.Sos, Hardware.LedMode.Blink)
         self.hw.led(Hardware.Led.Dir1, Hardware.LedMode.On)
         self.hw.led(Hardware.Led.Dir2, Hardware.LedMode.On)
