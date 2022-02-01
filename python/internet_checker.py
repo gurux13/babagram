@@ -3,7 +3,7 @@ import time
 import requests
 import threading
 
-from hardware import Hardware
+from hardware import Hardware, is_pi
 from threaded import Threaded
 
 
@@ -21,6 +21,8 @@ class InternetChecker (Threaded):
         return False
 
     def _thread_fn(self):
+        if not is_pi:
+            return
         while not self._stop:
             self.hw.led(Hardware.Led.WiFi,
                          Hardware.LedMode.On if self.connected_to_internet() else Hardware.LedMode.Off)

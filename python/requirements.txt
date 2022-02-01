@@ -15,3 +15,5 @@ Pillow
 requests
 pyaudio
 Mock.GPIO
+PySoundFile
+google-cloud-speech

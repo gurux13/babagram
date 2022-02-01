@@ -1,5 +1,12 @@
 import pyaudio
 import wave
+import soundfile as sf
+
+from speech import recognize
+
+sf._subtypes['OPUS']=0x0064
+
+import numpy as np
 
 import hardware
 
@@ -12,7 +19,7 @@ class Recording:
         chunk = 1024  # Record in chunks of 1024 samples
         sample_format = pyaudio.paInt16  # 16 bits per sample
         channels = 1
-        fs = 44100  # Record at 44100 samples per second
+        fs = 48000  # Record at 44100 samples per second
         # filename = "output.wav"
 
 
@@ -48,4 +55,14 @@ class Recording:
         wf.setframerate(fs)
         wf.writeframes(b''.join(frames))
         wf.close()
-        return '/tmp/recording.wav'
+        npframes = np.frombuffer(b''.join(frames), dtype='int16').reshape(-1, 1)
+        sf.write('/tmp/recording.ogg', npframes, fs, subtype='OPUS')
+        with open('/tmp/recording.ogg', 'rb') as f:
+            data = f.read()
+        transcript = None
+        try:
+            transcript = recognize(data)
+        except:
+            pass
+        print("TRANSCRIPT:", transcript)
+        return (data, transcript, npframes.shape[0] / fs)

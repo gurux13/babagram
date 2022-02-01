@@ -14,6 +14,7 @@ from printer import Printer
 import pickle
 
 from private_config import PrivateConfig
+import pathlib
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -86,13 +87,15 @@ class Telegram:
             update.effective_message.reply_text(
                 "Напечатано!" if had_name else "Напечатано, но... Установите имя командой /name !")
 
-    def send_audio(self, filename, destination):
+    def send_audio(self, dataandduration, destination):
         id = self.private_config.destinations[destination]
         if id == 0:
             return
-        with open(filename, 'rb') as f:
-            data = f.read()
-            self.bot.send_voice(id, data)
+        data = dataandduration[0]
+        transcript = dataandduration[1]
+        voice_msg = self.bot.send_voice(id, data, duration=int(dataandduration[2]), filename="voice.ogg", caption=transcript)
+        # if transcript is not None:
+        #     self.bot.send_message(id, transcript, reply_to_message_id = voice_msg.message_id)
     def send_text(self, text, destination):
         id = self.private_config.destinations[destination]
         if id == 0:

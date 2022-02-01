@@ -10,6 +10,7 @@ try:
 except:
     is_pi = False
     import Mock.GPIO as GPIO
+    import fake_gpio
 # import RPi.GPIO as GPIO
 from enum import Enum, unique
 import numpy as np
